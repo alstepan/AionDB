@@ -1,0 +1,31 @@
+{
+  "model": "claude-sonnet-4-6",
+  "thinkingMode": "auto",
+  "permissions": {
+    "allow": [
+      "Bash(cargo:*)", "Bash(git:*)",
+      "Bash(grep:*)", "Bash(find:*)",
+      "Edit", "Read", "Write"
+    ],
+    "deny": ["Bash(rm -rf:*)"]
+  },
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "Edit|Write",
+      "hooks": [{
+        "type": "command",
+        "command": "[ \"$(git branch --show-current)\" != \"main\" ] || { echo '{\"block\": true, \"message\": \"Cannot edit on main. Create a feature branch first.\"}' >&2; exit 2; }",
+        "timeout": 5
+      }]
+    }],
+    "PostToolUse": [{
+      "matcher": "Edit|Write",
+      "hooks": [{
+        "type": "command",
+        "command": "cargo fmt 2>/dev/null || true",
+        "timeout": 30
+      }]
+    }]
+  }
+}
+
