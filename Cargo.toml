@@ -1,6 +1,10 @@
-[package]
-name = "AionDB"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+members = [
+    "crates/aiondb-core",
+    "crates/aiondb-consensus",
+    "crates/aiondb-server",
+    "crates/aiondb-client",
+    "crates/aiondb-sql"
+]
+resolver = "2"  # always use resolver v2
 
-[dependencies]

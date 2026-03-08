@@ -3,5 +3,21 @@
 version = 4
 
 [[package]]
-name = "AionDB"
+name = "aiondb-client"
+version = "0.1.0"
+
+[[package]]
+name = "aiondb-consensus"
+version = "0.1.0"
+
+[[package]]
+name = "aiondb-core"
+version = "0.1.0"
+
+[[package]]
+name = "aiondb-server"
+version = "0.1.0"
+
+[[package]]
+name = "aiondb-sql"
 version = "0.1.0"
