@@ -44,7 +44,12 @@ impl Display for HLCTimestamp {
             .ok()
             .and_then(|ms| chrono::DateTime::from_timestamp_millis(ms))
         {
-            write!(f, "{}.{}", phys.format("%Y-%m-%dT%H:%M:%S%.3fZ"), self.logical)
+            write!(
+                f,
+                "{}.{}",
+                phys.format("%Y-%m-%dT%H:%M:%S%.3fZ"),
+                self.logical
+            )
         } else {
             write!(f, "Invalid time: {}.{}", self.physical, self.logical)
         }
@@ -71,12 +76,15 @@ pub enum HLCError {
 /// `Arc<HLC>` — all mutation is internally synchronised with a [`parking_lot::Mutex`].
 pub struct HLC {
     last: Mutex<HLCTimestamp>,
-    clock: fn() -> Result<u64, SystemTimeError>
+    clock: fn() -> Result<u64, SystemTimeError>,
 }
 
 impl Default for HLC {
     fn default() -> Self {
-        Self { last: Default::default(), clock: get_epoch_time_now }
+        Self {
+            last: Default::default(),
+            clock: get_epoch_time_now,
+        }
     }
 }
 
@@ -170,8 +178,8 @@ mod tests {
         fn with_clock(clock: fn() -> Result<u64, SystemTimeError>) -> HLC {
             HLC {
                 last: Mutex::new(HLCTimestamp::default()),
-                clock
-            }        
+                clock,
+            }
         }
 
         fn set_time(&self, new_time: HLCTimestamp) {
@@ -189,7 +197,10 @@ mod tests {
     #[test]
     fn test_hlc_timestamp_diplays_error() {
         let timestamp = HLCTimestamp::new(977316726400000999, 1);
-        assert_eq!(format!("{}", timestamp), "Invalid time: 977316726400000999.1")
+        assert_eq!(
+            format!("{}", timestamp),
+            "Invalid time: 977316726400000999.1"
+        )
     }
 
     #[test]
@@ -205,18 +216,18 @@ mod tests {
         hlc.set_time(HLCTimestamp::new(1, 1));
         let res3 = hlc.now().unwrap();
 
-        assert!(res3 > HLCTimestamp::new(1,1))
+        assert!(res3 > HLCTimestamp::new(1, 1))
     }
 
     #[test]
     fn test_hlc_now_handles_overflow() {
         let clock = || Ok(1u64);
         let hlc = HLC::with_clock(clock);
-        
+
         hlc.set_time(HLCTimestamp::new(1, u16::MAX));
 
         let res = hlc.now();
-        
+
         assert!(res.is_err());
     }
 }
