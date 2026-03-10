@@ -1,5 +1,6 @@
 use parking_lot::Mutex;
 use std::cmp::max;
+use std::fmt::Display;
 use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
 
 /// A Hybrid Logical Clock timestamp providing causal ordering across distributed nodes.
@@ -37,6 +38,19 @@ impl HLCTimestamp {
     }
 }
 
+impl Display for HLCTimestamp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(phys) = i64::try_from(self.physical)
+            .ok()
+            .and_then(|ms| chrono::DateTime::from_timestamp_millis(ms))
+        {
+            write!(f, "{}.{}", phys.format("%Y-%m-%dT%H:%M:%S%.3fZ"), self.logical)
+        } else {
+            write!(f, "Invalid time: {}.{}", self.physical, self.logical)
+        }
+    }
+}
+
 /// Errors produced by [`HLC`] operations.
 #[derive(thiserror::Error, Debug)]
 pub enum HLCError {
@@ -55,18 +69,22 @@ pub enum HLCError {
 /// Maintains the last observed [`HLCTimestamp`] and produces strictly monotonic
 /// timestamps on every call to [`HLC::now`]. Safe to share across threads via
 /// `Arc<HLC>` — all mutation is internally synchronised with a [`parking_lot::Mutex`].
-#[derive(Default)]
 pub struct HLC {
     last: Mutex<HLCTimestamp>,
+    clock: fn() -> Result<u64, SystemTimeError>
+}
+
+impl Default for HLC {
+    fn default() -> Self {
+        Self { last: Default::default(), clock: get_epoch_time_now }
+    }
 }
 
 impl HLC {
     /// Creates a new [`HLC`] initialised at the zero timestamp.
     /// The first call to [`HLC::now`] will advance it to the current wall clock time.
     pub fn new() -> HLC {
-        HLC {
-            last: Mutex::new(HLCTimestamp::default()),
-        }
+        HLC::default()
     }
 
     /// Returns a new [`HLCTimestamp`] that is strictly greater than all previously
@@ -78,7 +96,7 @@ impl HLC {
     pub fn now(&self) -> Result<HLCTimestamp, HLCError> {
         let mut time = self.last.lock();
         let (physical, logical) = (time.physical, time.logical);
-        let system_time = get_epoch_time_now()?;
+        let system_time = (self.clock)()?;
         let result = if physical >= system_time {
             if logical < u16::MAX {
                 Ok(HLCTimestamp::new(physical, logical + 1))
@@ -137,4 +155,68 @@ fn get_epoch_time_now() -> Result<u64, SystemTimeError> {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|t| t.as_millis() as u64)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    impl HLC {
+        fn last_time(&self) -> HLCTimestamp {
+            let time = self.last.lock();
+            *time
+        }
+
+        fn with_clock(clock: fn() -> Result<u64, SystemTimeError>) -> HLC {
+            HLC {
+                last: Mutex::new(HLCTimestamp::default()),
+                clock
+            }        
+        }
+
+        fn set_time(&self, new_time: HLCTimestamp) {
+            let mut time = self.last.lock();
+            *time = new_time;
+        }
+    }
+
+    #[test]
+    fn test_hlc_timestamp_displays_correctly() {
+        let timestamp = HLCTimestamp::new(1773167264000, 3);
+        assert_eq!(format!("{}", timestamp), "2026-03-10T18:27:44.000Z.3")
+    }
+
+    #[test]
+    fn test_hlc_timestamp_diplays_error() {
+        let timestamp = HLCTimestamp::new(977316726400000999, 1);
+        assert_eq!(format!("{}", timestamp), "Invalid time: 977316726400000999.1")
+    }
+
+    #[test]
+    fn test_hlc_now_increasing_logical_monotonically() {
+        let clock = || Ok(1u64);
+        let hlc = HLC::with_clock(clock);
+
+        let res1 = hlc.now().unwrap();
+        let res2 = hlc.now().unwrap();
+
+        assert!(res2 > res1);
+
+        hlc.set_time(HLCTimestamp::new(1, 1));
+        let res3 = hlc.now().unwrap();
+
+        assert!(res3 > HLCTimestamp::new(1,1))
+    }
+
+    #[test]
+    fn test_hlc_now_handles_overflow() {
+        let clock = || Ok(1u64);
+        let hlc = HLC::with_clock(clock);
+        
+        hlc.set_time(HLCTimestamp::new(1, u16::MAX));
+
+        let res = hlc.now();
+        
+        assert!(res.is_err());
+    }
 }

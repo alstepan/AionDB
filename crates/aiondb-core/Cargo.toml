@@ -6,6 +6,7 @@ publish = false
 license = "MIT"
 
 [dependencies]
+chrono = "0.4.44"
 parking_lot = "0.12.5"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
