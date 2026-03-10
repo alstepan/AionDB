@@ -1,0 +1,46 @@
+name: Build
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain:
+          - stable
+
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup rust
+        run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+
+      - name: Setup rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Update cargo
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest, cargo-deny, cargo-audit
+
+      - name: Check code formatting
+        run: cargo fmt --check
+      - name: Verify warning
+        run: cargo clippy -- -D warnings
+      - name: Run tests
+        run: cargo nextest run
+      - name: Verify security vulnerabilities
+        run: cargo audit
+      - name: Verify licenses
+        run: cargo deny check
