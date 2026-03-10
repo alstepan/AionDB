@@ -42,7 +42,7 @@ impl Display for HLCTimestamp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(phys) = i64::try_from(self.physical)
             .ok()
-            .and_then(|ms| chrono::DateTime::from_timestamp_millis(ms))
+            .and_then(chrono::DateTime::from_timestamp_millis)
         {
             write!(
                 f,
