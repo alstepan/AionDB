@@ -69,6 +69,8 @@ pub enum HLCError {
     SystemTimeError(#[from] SystemTimeError),
 }
 
+/// A type defining system clock
+pub type ClockFn = Mutex<Box<dyn FnMut() -> Result<u64, HLCError>>>;
 /// A Hybrid Logical Clock.
 ///
 /// Maintains the last observed [`HLCTimestamp`] and produces strictly monotonic
@@ -76,14 +78,16 @@ pub enum HLCError {
 /// `Arc<HLC>` — all mutation is internally synchronised with a [`parking_lot::Mutex`].
 pub struct HLC {
     last: Mutex<HLCTimestamp>,
-    clock: fn() -> Result<u64, SystemTimeError>,
+    // Lock ordering: `clock` and `last` must never be held simultaneously.
+    // Always release one before acquiring the other.    
+    clock: ClockFn,
 }
 
 impl Default for HLC {
     fn default() -> Self {
         Self {
             last: Default::default(),
-            clock: get_epoch_time_now,
+            clock: Mutex::new(Box::new(get_epoch_time_now)),
         }
     }
 }
@@ -102,9 +106,12 @@ impl HLC {
     /// - [`HLCError::LogicalOverflow`] if the logical counter would exceed `u16::MAX`.
     /// - [`HLCError::SystemTimeError`] if the system clock is unavailable.
     pub fn now(&self) -> Result<HLCTimestamp, HLCError> {
+        let mut sys_clock = self.clock.lock();
+        let system_time = (sys_clock)()?;
+        // Release clock lock before acquiring `last` — never hold both simultaneousl        
+        drop(sys_clock);
         let mut time = self.last.lock();
         let (physical, logical) = (time.physical, time.logical);
-        let system_time = (self.clock)()?;
         let result = if physical >= system_time {
             if logical < u16::MAX {
                 Ok(HLCTimestamp::new(physical, logical + 1))
@@ -159,10 +166,11 @@ impl HLC {
     }
 }
 
-fn get_epoch_time_now() -> Result<u64, SystemTimeError> {
+fn get_epoch_time_now() -> Result<u64, HLCError> {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|t| t.as_millis() as u64)
+        .map_err(|e| HLCError::SystemTimeError(e))
 }
 
 #[cfg(test)]
@@ -175,10 +183,10 @@ mod tests {
             *time
         }
 
-        fn with_clock(clock: fn() -> Result<u64, SystemTimeError>) -> HLC {
+        fn with_clock(clock: Box<dyn FnMut() -> Result<u64, HLCError>>) -> HLC {
             HLC {
                 last: Mutex::new(HLCTimestamp::default()),
-                clock,
+                clock: Mutex::new(clock),
             }
         }
 
@@ -205,7 +213,7 @@ mod tests {
 
     #[test]
     fn test_hlc_now_increasing_logical_monotonically() {
-        let clock = || Ok(1u64);
+        let clock = Box::new(|| Ok(1u64));
         let hlc = HLC::with_clock(clock);
 
         let res1 = hlc.now().unwrap();
@@ -220,8 +228,29 @@ mod tests {
     }
 
     #[test]
+    fn test_hlc_now_increasing_monotonically() {
+        let mut clock_state: u64 = 1_000_000; 
+        let clock = Box::new(move || {clock_state += 1000; Ok(clock_state)});
+        let hlc = HLC::with_clock(clock);
+
+        let res1 = hlc.now().unwrap();
+        let res2 = hlc.now().unwrap();
+
+        assert!(res2 > res1);
+
+        let mut clock_state: u64 = 1_000_000; 
+        let clock = Box::new(move || {clock_state -= 1000; Ok(clock_state)});
+        let hlc = HLC::with_clock(clock);
+
+        let res1 = hlc.now().unwrap();
+        let res2 = hlc.now().unwrap();
+
+         assert!(res2 > res1);
+    }    
+
+    #[test]
     fn test_hlc_now_handles_overflow() {
-        let clock = || Ok(1u64);
+        let clock =Box::new( || Ok(1u64));
         let hlc = HLC::with_clock(clock);
 
         hlc.set_time(HLCTimestamp::new(1, u16::MAX));
