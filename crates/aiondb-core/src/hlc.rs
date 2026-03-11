@@ -170,7 +170,7 @@ fn get_epoch_time_now() -> Result<u64, HLCError> {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|t| t.as_millis() as u64)
-        .map_err(|e| HLCError::SystemTimeError(e))
+        .map_err(HLCError::SystemTimeError)
 }
 
 #[cfg(test)]
