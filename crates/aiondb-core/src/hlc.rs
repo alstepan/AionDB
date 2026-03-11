@@ -79,7 +79,7 @@ pub type ClockFn = Mutex<Box<dyn FnMut() -> Result<u64, HLCError>>>;
 pub struct HLC {
     last: Mutex<HLCTimestamp>,
     // Lock ordering: `clock` and `last` must never be held simultaneously.
-    // Always release one before acquiring the other.    
+    // Always release one before acquiring the other.
     clock: ClockFn,
 }
 
@@ -108,7 +108,7 @@ impl HLC {
     pub fn now(&self) -> Result<HLCTimestamp, HLCError> {
         let mut sys_clock = self.clock.lock();
         let system_time = (sys_clock)()?;
-        // Release clock lock before acquiring `last` — never hold both simultaneousl        
+        // Release clock lock before acquiring `last` — never hold both simultaneousl
         drop(sys_clock);
         let mut time = self.last.lock();
         let (physical, logical) = (time.physical, time.logical);
@@ -229,8 +229,11 @@ mod tests {
 
     #[test]
     fn test_hlc_now_increasing_monotonically() {
-        let mut clock_state: u64 = 1_000_000; 
-        let clock = Box::new(move || {clock_state += 1000; Ok(clock_state)});
+        let mut clock_state: u64 = 1_000_000;
+        let clock = Box::new(move || {
+            clock_state += 1000;
+            Ok(clock_state)
+        });
         let hlc = HLC::with_clock(clock);
 
         let res1 = hlc.now().unwrap();
@@ -238,19 +241,22 @@ mod tests {
 
         assert!(res2 > res1);
 
-        let mut clock_state: u64 = 1_000_000; 
-        let clock = Box::new(move || {clock_state -= 1000; Ok(clock_state)});
+        let mut clock_state: u64 = 1_000_000;
+        let clock = Box::new(move || {
+            clock_state -= 1000;
+            Ok(clock_state)
+        });
         let hlc = HLC::with_clock(clock);
 
         let res1 = hlc.now().unwrap();
         let res2 = hlc.now().unwrap();
 
-         assert!(res2 > res1);
-    }    
+        assert!(res2 > res1);
+    }
 
     #[test]
     fn test_hlc_now_handles_overflow() {
-        let clock =Box::new( || Ok(1u64));
+        let clock = Box::new(|| Ok(1u64));
         let hlc = HLC::with_clock(clock);
 
         hlc.set_time(HLCTimestamp::new(1, u16::MAX));
