@@ -24,10 +24,11 @@ use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
     serde::Serialize,
     serde::Deserialize,
     Default,
+    Hash,
 )]
 pub struct HLCTimestamp {
     pub physical: u64, // system time in milliseconds since Unix epoch
-    logical: u16,  // logical counter to order events coming during the same millisecond
+    logical: u16,      // logical counter to order events coming during the same millisecond
 }
 
 impl HLCTimestamp {
@@ -35,7 +36,7 @@ impl HLCTimestamp {
     /// and a logical counter.
     pub fn new(physical: u64, logical: u16) -> HLCTimestamp {
         HLCTimestamp { physical, logical }
-    }    
+    }
 }
 
 impl Display for HLCTimestamp {
@@ -307,18 +308,20 @@ mod tests {
 
         let results: Arc<Mutex<Vec<HLCTimestamp>>> = Arc::new(Mutex::new(Vec::new()));
 
-        let handles: Vec<_> = (0..8).map(|_| {
-            let hlc = Arc::clone(&hlc);
-            let results = Arc::clone(&results);
-            std::thread::spawn(move || {
-                for _ in 0..1000 {
-                    let ts = hlc.now().unwrap();
-                    results.lock().push(ts);
-                }
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                let hlc = Arc::clone(&hlc);
+                let results = Arc::clone(&results);
+                std::thread::spawn(move || {
+                    for _ in 0..1000 {
+                        let ts = hlc.now().unwrap();
+                        results.lock().push(ts);
+                    }
+                })
             })
-        }).collect();
+            .collect();
 
-        for h in handles { 
+        for h in handles {
             h.join().unwrap();
         }
 
@@ -412,23 +415,27 @@ mod tests {
         let hlc = Arc::new(HLC::with_clock(clock));
         let results: Arc<Mutex<Vec<HLCTimestamp>>> = Arc::new(Mutex::new(Vec::new()));
         let observes: Arc<Mutex<Vec<HLCTimestamp>>> = Arc::new(Mutex::new(
-            (0.. (8 * 1000)).map(|ph| HLCTimestamp::new(1000u64, ph)).collect()
+            (0..(8 * 1000))
+                .map(|ph| HLCTimestamp::new(1000u64, ph))
+                .collect(),
         ));
 
-        let handles: Vec<_> = (0..8).map(|_| {
-            let hlc = Arc::clone(&hlc);
-            let results = Arc::clone(&results);
-            let observes = Arc::clone(&observes);
-            std::thread::spawn(move || {
-                for _ in 0..1000 {
-                    let ob = observes.lock().pop().unwrap();
-                    let ts = hlc.observe(ob).unwrap();
-                    results.lock().push(ts);
-                }
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                let hlc = Arc::clone(&hlc);
+                let results = Arc::clone(&results);
+                let observes = Arc::clone(&observes);
+                std::thread::spawn(move || {
+                    for _ in 0..1000 {
+                        let ob = observes.lock().pop().unwrap();
+                        let ts = hlc.observe(ob).unwrap();
+                        results.lock().push(ts);
+                    }
+                })
             })
-        }).collect();
+            .collect();
 
-        for h in handles { 
+        for h in handles {
             h.join().unwrap();
         }
 
