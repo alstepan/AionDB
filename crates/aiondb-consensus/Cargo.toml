@@ -6,3 +6,6 @@ publish = false
 license = "MIT"
 
 [dependencies]
+thiserror = "2.0.18"
+aiondb-core = { path = "../aiondb-core" }
+async-trait = "0.1.89"
