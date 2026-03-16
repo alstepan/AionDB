@@ -2,11 +2,10 @@ use async_trait::async_trait;
 
 use crate::types::LogEntry;
 
-
 #[derive(thiserror::Error, Debug)]
 pub enum StateMachineError {
-    #[error("apply failed: {0}")]  
-    ApplyFailed(String)
+    #[error("apply failed: {0}")]
+    ApplyFailed(String),
 }
 
 #[async_trait]
