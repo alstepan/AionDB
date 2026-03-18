@@ -58,4 +58,12 @@ mod tests {
             "rowId:1970-01-01T00:00:12.345Z.3:node:54321".to_string()
         )
     }
+
+    #[test]
+    fn test_timestamp_first_ordering() {
+        let ts_earlier = HLCTimestamp::new(0, 1);
+        let ts_later= HLCTimestamp::new(0, 2);
+        assert!(RowId::new(ts_earlier, NodeId(999)) < RowId::new(ts_later, NodeId(0)));
+        assert!(RowId::new(ts_earlier, NodeId(999)) < RowId::new(ts_later, NodeId(999)));
+    }
 }

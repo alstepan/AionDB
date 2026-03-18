@@ -132,6 +132,7 @@ impl HLC {
     fn get_system_clock_time(&self) -> Result<u64, HLCError> {
         let mut sys_clock = self.clock.lock();
         let system_time = (sys_clock)()?;
+        drop(sys_clock);
         Ok(system_time)
     }
 
@@ -157,16 +158,13 @@ impl HLC {
         let mut time = self.last.lock();
         let result = match (system_time, time.physical, ts.physical) {
             (st, tt, ts1) if st > tt && st > ts1 => Ok(HLCTimestamp::new(st, 0)),
-            (st, tt, ts1) if tt > st && tt > ts1 => {
+            (st, tt, ts1) if tt >= st && tt > ts1 => {
                 HLC::increment_logical(&time).map(|l| HLCTimestamp::new(tt, l))
             }
             (st, tt, ts1) if ts1 >= st && ts1 > tt => {
                 HLC::increment_logical(&ts).map(|l| HLCTimestamp::new(ts1, l))
             }
-            (st, tt, ts1) if st == tt && tt > ts1 => {
-                HLC::increment_logical(&time).map(|l| HLCTimestamp::new(time.physical, l))
-            }
-            (st, tt, ts1) if st == tt && tt == ts1 => {
+            (_, tt, ts1) if tt == ts1 => {
                 let new_logical = max(time.logical as u32, ts.logical as u32) + 1;
                 if new_logical > u16::MAX as u32 {
                     Err(HLCError::LogicalOverflow(HLCTimestamp::new(
@@ -176,18 +174,7 @@ impl HLC {
                 } else {
                     Ok(HLCTimestamp::new(time.physical, new_logical as u16))
                 }
-            }
-            (st, tt, ts1) if tt == ts1 && ts1 > st => {
-                let new_logical = max(time.logical as u32, ts.logical as u32) + 1;
-                if new_logical > u16::MAX as u32 {
-                    Err(HLCError::LogicalOverflow(HLCTimestamp::new(
-                        ts.physical,
-                        u16::MAX,
-                    )))
-                } else {
-                    Ok(HLCTimestamp::new(time.physical, new_logical as u16))
-                }
-            }
+            }            
             (_, _, _) => unreachable!("all orderings of (st, tt, ts1) are covered"),
         };
         result.inspect(|&t| *time = t)

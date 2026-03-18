@@ -12,6 +12,6 @@ pub enum ConsensusError {
 }
 
 #[async_trait]
-pub trait Consensus {
+pub trait Consensus: Send + Sync {
     async fn propose(&self, entry: LogEntry) -> Result<LogIndex, ConsensusError>;
 }
