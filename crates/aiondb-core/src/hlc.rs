@@ -174,7 +174,7 @@ impl HLC {
                 } else {
                     Ok(HLCTimestamp::new(time.physical, new_logical as u16))
                 }
-            }            
+            }
             (_, _, _) => unreachable!("all orderings of (st, tt, ts1) are covered"),
         };
         result.inspect(|&t| *time = t)
