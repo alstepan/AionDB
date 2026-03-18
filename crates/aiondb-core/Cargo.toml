@@ -2,5 +2,14 @@
 name = "aiondb-core"
 version = "0.1.0"
 edition = "2024"
+publish = false
+license = "MIT"
 
 [dependencies]
+chrono = "0.4.44"
+parking_lot = "0.12.5"
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+
+[dev-dependencies]
+proptest = "1.10.0"
