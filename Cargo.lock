@@ -12,6 +12,7 @@ version = "0.1.0"
 dependencies = [
  "aiondb-core",
  "async-trait",
+ "serde",
  "thiserror",
 ]
 

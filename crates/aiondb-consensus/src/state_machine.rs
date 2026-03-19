@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::types::LogEntry;
+use crate::log::LogEntry;
 
 #[derive(thiserror::Error, Debug)]
 pub enum StateMachineError {

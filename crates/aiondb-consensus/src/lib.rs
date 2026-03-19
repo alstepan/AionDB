@@ -1,3 +1,3 @@
 pub mod consensus;
+pub mod log;
 pub mod state_machine;
-pub mod types;
