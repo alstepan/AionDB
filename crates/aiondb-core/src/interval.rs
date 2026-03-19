@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use serde::{Deserialize, Serialize};
+
 use crate::hlc::HLCTimestamp;
 
 /// A half-open time interval `[valid_from, valid_to)` over [`HLCTimestamp`].
@@ -10,7 +12,7 @@ use crate::hlc::HLCTimestamp;
 /// - `valid_from = HLCTimestamp::MIN` is meaningful only in query range expressions
 ///   (e.g. "from the beginning of history"). Storage records must carry the actual
 ///   [`HLCTimestamp`] at which the record became valid.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct ValidInterval {
     pub valid_from: HLCTimestamp, // HLCTimestamp::MIN means "open" / from the start of the time
     pub valid_to: HLCTimestamp,   // HLCTimestamp::MAX means "open" / current
@@ -35,7 +37,7 @@ impl ValidInterval {
     /// `from` should be less or equal than `to`
     ///
     /// # Errors
-    /// 
+    ///
     /// Returns Err(IntervalError::InvalidInterval) if from > to
     pub fn new(from: HLCTimestamp, to: HLCTimestamp) -> Result<Self, IntervalError> {
         if to < from {
