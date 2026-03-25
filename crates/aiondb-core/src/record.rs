@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{identity::RowId, interval::ValidInterval};
 
 /// Opaque serialised bytes representing user data. Interpretation is governed by [`SchemaId`].
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Payload(pub Vec<u8>);
 
 /// SchemaId governs interpretation of the payload stored in the record. SchemaId is local to the database engine.
@@ -13,7 +13,7 @@ pub struct Payload(pub Vec<u8>);
 pub struct SchemaId(pub u32);
 
 /// The temporal data record
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Record {
     /// Schema version governing payload interpretation. Local to this node's registry.
     pub schema_id: SchemaId,

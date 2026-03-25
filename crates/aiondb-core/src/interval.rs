@@ -12,7 +12,7 @@ use crate::hlc::HLCTimestamp;
 /// - `valid_from = HLCTimestamp::MIN` is meaningful only in query range expressions
 ///   (e.g. "from the beginning of history"). Storage records must carry the actual
 ///   [`HLCTimestamp`] at which the record became valid.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize, Clone)]
 pub struct ValidInterval {
     pub valid_from: HLCTimestamp, // HLCTimestamp::MIN means "open" / from the start of the time
     pub valid_to: HLCTimestamp,   // HLCTimestamp::MAX means "open" / current

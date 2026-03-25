@@ -93,3 +93,101 @@ impl Store for MemStore {
         Ok(result)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{identity::NodeId, record::Payload};
+
+    use super::*;
+
+    #[test]
+    fn test_insert_adds_records() {
+        let store = MemStore::new();
+        let r1 = Record {
+            row_id: RowId::new(HLCTimestamp::new(1, 1), NodeId(1)),
+            schema_id: SchemaId(1),
+            valid_interval: ValidInterval::new(HLCTimestamp::new(1, 1), HLCTimestamp::new(2, 3))
+                .unwrap(),
+            payload: Payload(vec![1, 2, 3, 4]),
+        };
+        let r1_1 = r1.clone();
+
+        store.insert(r1).unwrap();
+
+        let result = store.query_as_of(HLCTimestamp::new(2, 1));
+
+        let res = result
+            .unwrap()
+            .first()
+            .expect("One record is expected")
+            .clone();
+
+        assert_eq!(*res, r1_1);
+    }
+
+    #[test]
+    fn test_query_as_of_returns_empty_result_when_timestamp_is_outside_the_interval() {
+        let store = MemStore::new();
+        let r1 = Record {
+            row_id: RowId::new(HLCTimestamp::new(1, 1), NodeId(1)),
+            schema_id: SchemaId(1),
+            valid_interval: ValidInterval::new(HLCTimestamp::new(3, 1), HLCTimestamp::new(5, 3))
+                .unwrap(),
+            payload: Payload(vec![1, 2, 3, 4]),
+        };
+
+        store.insert(r1).unwrap();
+
+        let result = store.query_as_of(HLCTimestamp::new(2, 1));
+        let res = result.unwrap();
+
+        assert!(res.is_empty());
+    }
+
+    #[test]
+    fn test_empty_store_returns_empty_results() {
+        let store = MemStore::new();
+
+        let result = store.query_as_of(HLCTimestamp::new(2, 1));
+        let res = result.unwrap();
+
+        assert!(res.is_empty());
+
+        let result = store.query_range(&ValidInterval::open(HLCTimestamp::MIN));
+        let res = result.unwrap();
+
+        assert!(res.is_empty());
+    }
+
+    #[test]
+    fn test_query_range_returns_matching_records() {
+        let store = MemStore::new();
+        let r1 = Record {
+            row_id: RowId::new(HLCTimestamp::new(1, 1), NodeId(1)),
+            schema_id: SchemaId(1),
+            valid_interval: ValidInterval::new(HLCTimestamp::new(3, 1), HLCTimestamp::new(3, 2))
+                .unwrap(),
+            payload: Payload(vec![1, 2, 3, 4]),
+        };
+        let r2 = Record {
+            row_id: RowId::new(HLCTimestamp::new(1, 2), NodeId(1)),
+            schema_id: SchemaId(1),
+            valid_interval: ValidInterval::new(HLCTimestamp::new(4, 1), HLCTimestamp::new(5, 3))
+                .unwrap(),
+            payload: Payload(vec![1, 2, 3, 4]),
+        };
+        let r2_2 = r2.clone();
+
+        store.insert(r1).expect("cannot insert record");
+        store.insert(r2).expect("cannot insert record");
+
+        let result = store.query_range(&ValidInterval::open(HLCTimestamp::new(4, 0))).unwrap();
+
+        assert_eq!(result.len(), 1);
+
+        let res = result.first().expect("Expected one record").clone();
+
+        assert_eq!(*res, r2_2);
+
+    }
+}
