@@ -9,3 +9,4 @@ license = "MIT"
 thiserror = "2.0.18"
 aiondb-core = { path = "../aiondb-core", version = "0.1.0" }
 async-trait = "0.1.89"
+serde = { version = "1", features = ["derive"] }

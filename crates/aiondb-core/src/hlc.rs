@@ -27,8 +27,8 @@ use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
     Hash,
 )]
 pub struct HLCTimestamp {
-    pub physical: u64, // system time in milliseconds since Unix epoch
-    logical: u16,      // logical counter to order events coming during the same millisecond
+    pub physical: u64,
+    logical: u16,
 }
 
 impl HLCTimestamp {
@@ -37,6 +37,21 @@ impl HLCTimestamp {
     pub fn new(physical: u64, logical: u16) -> HLCTimestamp {
         HLCTimestamp { physical, logical }
     }
+
+    /// Maximum possible time
+    pub const MAX: HLCTimestamp = HLCTimestamp {
+        physical: u64::MAX,
+        logical: u16::MAX,
+    };
+
+    /// Minimum possible time
+    ///
+    /// MIN is permitted as a valid_from when used in query range expressions;
+    /// storage records should use the actual insertion HLC timestamp.
+    pub const MIN: HLCTimestamp = HLCTimestamp {
+        physical: 0,
+        logical: 0,
+    };
 }
 
 impl Display for HLCTimestamp {

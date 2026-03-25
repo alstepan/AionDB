@@ -1,6 +1,7 @@
+use aiondb_core::replication::LogIndex;
 use async_trait::async_trait;
 
-use crate::types::{LogEntry, LogIndex};
+use crate::log::LogEntry;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ConsensusError {
