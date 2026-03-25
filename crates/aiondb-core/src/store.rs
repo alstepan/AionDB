@@ -181,13 +181,14 @@ mod tests {
         store.insert(r1).expect("cannot insert record");
         store.insert(r2).expect("cannot insert record");
 
-        let result = store.query_range(&ValidInterval::open(HLCTimestamp::new(4, 0))).unwrap();
+        let result = store
+            .query_range(&ValidInterval::open(HLCTimestamp::new(4, 0)))
+            .unwrap();
 
         assert_eq!(result.len(), 1);
 
         let res = result.first().expect("Expected one record").clone();
 
         assert_eq!(*res, r2_2);
-
     }
 }
